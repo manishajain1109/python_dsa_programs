@@ -1,0 +1,147 @@
+
+import json
+import sys
+from typing import Dict, List
+
+try:
+    from openai import OpenAI
+except ImportError:
+    print("Please install the OpenAI package: pip install openai")
+    sys.exit(1)
+
+# -------------------------------
+# CONFIGURATION
+# -------------------------------
+# Set your API key as an environment variable before running:
+# export OPENAI_API_KEY="your_api_key_here"
+client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+
+# Sample menu
+MENU = {
+    "Pizza": 250,
+    "Burger": 150,
+    "Pasta": 200,
+    "Salad": 120,
+    "Coke": 50
+}
+
+# -------------------------------
+# ORDER MANAGEMENT
+# -------------------------------
+class Order:
+    def __init__(self):
+        self.items: Dict[str, int] = {}
+
+    def add_item(self, item: str, qty: int):
+        if item not in MENU:
+            return False
+        self.items[item] = self.items.get(item, 0) + qty
+        return True
+
+    def total_price(self) -> int:
+        return sum(MENU[item] * qty for item, qty in self.items.items())
+
+    def summary(self) -> str:
+        if not self.items:
+            return "No items in your order yet."
+        lines = [f"{item} x{qty} = ₹{MENU[item] * qty}" for item, qty in self.items.items()]
+        lines.append(f"Total: ₹{self.total_price()}")
+        return "\n".join(lines)
+
+# -------------------------------
+# LLM INTERACTION
+# -------------------------------
+def ask_llm(prompt: str) -> str:
+    """Send a prompt to the LLM and return its response."""
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",  # You can change to another model
+            messages=[
+                {"role": "system", "content": "You are a helpful food ordering assistant."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.5
+        )
+        return response.choices[0].message.content.strip()
+    except Exception as e:
+        return f"Error: {e}"
+
+# -------------------------------
+# MAIN LOOP
+# -------------------------------
+def main():
+    print("🍽 Welcome to LLM Food Delivery!")
+    print("Menu:")
+    for item, price in MENU.items():
+        print(f" - {item}: ₹{price}")
+    print("\nType 'done' to finish your order.\n")
+
+    order = Order()
+
+    while True:
+        user_input = input("You: ").strip()
+        if user_input.lower() == "done":
+            break
+
+        # Ask LLM to parse the order
+        llm_prompt = f"""
+        The menu is: {json.dumps(MENU)}.
+        The user says: "{user_input}".
+        Extract the item name and quantity from the message.
+        Respond in JSON format: {{"item": "<name>", "quantity": <number>}}.
+        If no valid item is found, respond with: {{"error": "Invalid item"}}.
+        """
+        llm_response = ask_llm(llm_prompt)
+
+        try:
+            data = json.loads(llm_response)
+            if "error" in data:
+                print("Assistant: Sorry, I couldn't find that item on the menu.")
+            else:
+                item = data["item"]
+                qty = int(data["quantity"])
+                if order.add_item(item, qty):
+                    print(f"Assistant: Added {qty} x {item} to your order.")
+                else:
+                    print("Assistant: That item is not available.")
+        except json.JSONDecodeError:
+            print("Assistant: I couldn't understand your order format.")
+
+    print("\n🧾 Order Summary:")
+    print(order.summary())
+    print("✅ Thank you for ordering! Your food will be delivered soon.")
+
+if __name__ == "__main__":
+    main()
+
+
+How It Works
+
+Menu — Defined in a dictionary with prices.
+Order Class — Handles adding items, calculating totals, and summarizing.
+LLM Parsing — The LLM extracts the item and quantity from natural language.
+Conversation Loop — User types orders until they type "done".
+Output — Shows a bill and confirms the order.
+
+
+Example Run
+🍽 Welcome to LLM Food Delivery!
+Menu:
+ - Pizza: ₹250
+ - Burger: ₹150
+ - Pasta: ₹200
+ - Salad: ₹120
+ - Coke: ₹50
+
+Type 'done' to finish your order.
+
+You: I want 2 pizzas and a coke
+Assistant: Added 2 x Pizza to your order.
+Assistant: Added 1 x Coke to your order.
+
+You: done
+
+🧾 Order Summary:
+Pizza x2 = ₹500
+Coke x1 = ₹50
+Total:550
