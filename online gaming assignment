@@ -1,0 +1,10 @@
+import socket
+
+client = socket.socket()
+client.connect(('localhost', 12345))
+
+while True:
+    msg = client.recv(1024).decode()
+    print(msg, end="")
+    guess = input()
+    client.send(guess.encode())
