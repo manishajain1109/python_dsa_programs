@@ -1,0 +1,35 @@
+# Python Program
+
+class FoodItem:
+    def __init__(self, item_id, name, price):
+        self.item_id = item_id
+        self.name = name
+        self.price = price
+
+class Restaurant:
+    def __init__(self, name):
+        self.name = name
+        self.menu = []
+        
+    def add_food(self, food):
+        self.menu.append(food)
+        
+    def show_menu(self):
+        print(f"****** {self.name} Menu ******")
+        for food in self.menu:
+            print(f"ID: {food.item_id} | {food.name} - ${food.price}")
+
+# Example Usage:
+# Create a restaurant
+my_restaurant = Restaurant("Grand Bistro")
+
+# Create food items
+item1 = FoodItem(1, "Burger", 5.99)
+item2 = FoodItem(2, "Pizza", 8.99)
+
+# Add items to the restaurant menu
+my_restaurant.add_food(item1)
+my_restaurant.add_food(item2)
+
+# Display the menu
+my_restaurant.show_menu()
